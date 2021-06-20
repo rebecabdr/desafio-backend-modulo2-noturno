@@ -3,6 +3,7 @@ const data = require('./banco/data.json');
 const bodyParser = require('body-parser');
 const {lerArquivo, escreverNoArquivo} = require('./bibliotecaFS');
 const { addBusinessDays } = require('date-fns');
+const { formatRFC3339WithOptions } = require('date-fns/fp');
 
 const app = express();
 
@@ -11,15 +12,17 @@ app.use(express.json());
 
 
 function atualizarCarrinho (carrinho){
-    const subTotal = carrinho.produtos.map(x => x.preco * x.quantidade).reduce((x,y) => x +y)
+    const subTotal = (carrinho.produtos.length > 0 ? 
+                    carrinho.produtos.map(x => x.preco * x.quantidade).reduce((x,y) => x +y) : 0)
+    
     const dataDeEntrega = addBusinessDays(new Date(), 15);
     const valorDoFrete = (subTotal <= 20000 ? 5000 : 0);
     const totalAPagar = subTotal + valorDoFrete;
 
     carrinho.subtotal = subTotal;
-    carrinho.dataDeEntrega = dataDeEntrega;
-    carrinho.valorDoFrete = valorDoFrete;
-    carrinho.totalAPagar = totalAPagar;
+    carrinho.dataDeEntrega = (carrinho.produtos.length > 0 ? dataDeEntrega : null);
+    carrinho.valorDoFrete = (carrinho.produtos.length > 0 ? valorDoFrete : 0);
+    carrinho.totalAPagar = (carrinho.produtos.length > 0 ? totalAPagar : 0);
 }
 
 
@@ -179,7 +182,16 @@ app.delete('/carrinho/produtos/:idProduto', async (req, res) => {
     }
 });
 
+app.delete('/carrinho', async (req, res) => {       // falta conseguir devolver o estoque dos produtos deletados para a lista original
+    const {produtos, carrinho} = await lerArquivo();
+    
+    carrinho.produtos.splice(0)
 
+    atualizarCarrinho(carrinho)
+                
+    await escreverNoArquivo( { produtos, carrinho })
+    res.json({"mensagem": "Operação realizada com sucesso!"})
+});
 
 
 app.listen(3000);

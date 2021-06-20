@@ -32,7 +32,7 @@
       "id": 5,
       "nome": "Biscoito BAUDUCCO Choco Biscuit Leite 80g",
       "preco": 519,
-      "estoque": 1,
+      "estoque": 0,
       "categoria": "Bazar"
     },
     {
@@ -86,7 +86,15 @@
     }
   ],
   "carrinho": {
-    "produtos": [],
+    "produtos": [
+      {
+        "id": 5,
+        "quantidade": 2,
+        "nome": "Biscoito BAUDUCCO Choco Biscuit Leite 80g",
+        "preco": 519,
+        "categoria": "Bazar"
+      }
+    ],
     "subtotal": 0,
     "dataDeEntrega": null,
     "valorDoFrete": 0,

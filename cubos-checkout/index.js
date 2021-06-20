@@ -9,25 +9,19 @@ const app = express();
 app.use(express.json());
 
 
-function adicionarProdutos(produto, carrinho, quantidade) {
-   
-    const indice = carrinho.findIndex(x => x.id === produto.id);
-   
-    if (indice >= 0) {
-        carrinho[indice].quantidade += quantidade;
-    } else {
-        produto.quantidade = quantidade;
-        carrinho.push(produto);
-    }
 
-    return carrinho;
+function atualizarCarrinho (carrinho){
+    const subTotal = carrinho.produtos.map(x => x.preco * x.quantidade).reduce((x,y) => x +y)
+    const dataDeEntrega = addBusinessDays(new Date(), 15);
+    const valorDoFrete = (subTotal <= 20000 ? 5000 : 0);
+    const totalAPagar = subTotal + valorDoFrete;
+
+    carrinho.subtotal = subTotal;
+    carrinho.dataDeEntrega = dataDeEntrega;
+    carrinho.valorDoFrete = valorDoFrete;
+    carrinho.totalAPagar = totalAPagar;
 }
 
-function calculoSubTotal(produtosCarrinho){
-    const total = produtosCarrinho.map(x => x.preco * x.quantidade).reduce((x,y) => x +y)
-
-    return total
-}
 
 // GET listar produtos, com filtros ou sem.
 
@@ -62,15 +56,15 @@ app.post('/carrinho/produtos', async (req, res) =>{
     const produtoAAdicionar = produtos.find(x => x.id === id);
     const produtoNoCarrinho = carrinho.produtos.find(x => x.id === id);
 
-    // resolver questão de qntd solicitada maior que o disponível no estoque.
-
     if(produtoAAdicionar.estoque >= quantidade){
         
         if (produtoNoCarrinho){
             produtoNoCarrinho.quantidade += quantidade;
             produtoAAdicionar.estoque -= quantidade;
+
+            atualizarCarrinho(carrinho)
     
-            await escreverNoArquivo({produtos, carrinho})
+            await escreverNoArquivo({ produtos, carrinho })
             res.json(carrinho)
     
         } else {
@@ -83,7 +77,8 @@ app.post('/carrinho/produtos', async (req, res) =>{
             }
     
             carrinho.produtos.push(addProduct);
-    
+            atualizarCarrinho(carrinho)
+
             await escreverNoArquivo( { produtos, carrinho })
             res.json(carrinho)
         }
@@ -93,38 +88,63 @@ app.post('/carrinho/produtos', async (req, res) =>{
         res.json({"mensagem":"A quantidade em estoque é insuficiente para essa compra!"});
         return
     }
+});
 
+app.patch('/carrinho/produtos/:idProduto', async (req, res) => {
+    const {produtos, carrinho} = await lerArquivo();
+    const quantidade = req.body.quantidade;
+    const idSolicitado = Number(req.params.idProduto);
+
+    const idSolicitadoCarrinho = carrinho.produtos.find(x => x.id === idSolicitado);
+    const idSolicitadoProdutos = produtos.find(x => x.id === idSolicitado);
     
+    if(idSolicitadoCarrinho){
+       
+        if(quantidade > 0){         // se quantidade solicitada for positiva (adicionar), tenho que consultar o estoque
+
+            if(idSolicitadoProdutos.estoque >= idSolicitadoCarrinho.quantidade){     // se o produto para alterar tem estoque suficiente
+               
+                idSolicitadoCarrinho.quantidade += quantidade;
+                idSolicitadoProdutos.estoque -= quantidade;
+
+                atualizarCarrinho(carrinho)
+                
+                await escreverNoArquivo( { produtos, carrinho })
+                res.json(carrinho)
+
+            } else {                // se o produto para alterar NÃO tem estoque suficiente
+                res.status(404)
+                res.json({"mensagem":"Estoque insuficiente para fazer essa alteração!"});
+                return
+            }
+
+        } else {            // se quantidade solicitada for negativa (remover), tenho que consultar a quantidade no carrinho
+            if(idSolicitadoCarrinho.quantidade >= (-quantidade)){     // se o produto para alterar NO CARRINHO tem quantidade suficiente
+               
+                idSolicitadoCarrinho.quantidade += quantidade;
+                idSolicitadoProdutos.estoque -= quantidade;
+
+                atualizarCarrinho(carrinho)
+                
+                await escreverNoArquivo( { produtos, carrinho })
+                res.json(carrinho)
+
+            } else {                // se o produto para alterar NO CARRINHO NÃO tem quantidade suficiente
+                res.status(404)
+                res.json({"mensagem":"Estoque insuficiente para fazer essa alteração!"});
+                return
+            }
+        }
+
+    } else {
+        res.status(404)
+        res.json({"mensagem":"Este item não se encontra no carrinho!"});
+        return
+    }
 
 
-    // if(quantidade <= localizarProduto.estoque){
-    //     let data = await lerArquivo()
-    //     const { carrinho} = data;
-
-    //     const produtoAdd = adicionarProdutos(localizarProduto, carrinho, quantidade)
-
-    //     const subTotal = calculoSubTotal(carrinho);
-    //     const dataDeEntrega = addBusinessDays(new Date(), 15);
-    //     const valorDoFrete = (subTotal <= 20000 ? 5000 : 0);
-    //     const totalAPagar = subTotal + valorDoFrete;
-
-    //     data ={
-    //         "produtos": produtoAdd,
-    //         "subtotal": subTotal,
-    //         "dateDeEntrega": dataDeEntrega,
-    //         "valorDoFrete": valorDoFrete,
-    //         "totalAPagar": totalAPagar,
-    //     }
-
-    //     await escreverNoArquivo(data);
-
-    //     res.json(carrinho)
-
-    // } else {
-    // return res.json("Quantidade insuficiente no estoque!")
-// }
-    
 
 });
+
 
 app.listen(3000);

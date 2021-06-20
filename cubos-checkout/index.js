@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const {lerArquivo, escreverNoArquivo} = require('./bibliotecaFS');
 const { addBusinessDays } = require('date-fns');
 const { formatRFC3339WithOptions } = require('date-fns/fp');
+const { text } = require('body-parser');
 
 const app = express();
 
@@ -191,6 +192,60 @@ app.delete('/carrinho', async (req, res) => {       // falta conseguir devolver 
                 
     await escreverNoArquivo( { produtos, carrinho })
     res.json({"mensagem": "Operação realizada com sucesso!"})
+});
+
+app.post('/carrinho/finalizar-compra', async (req, res) => {
+    const {produtos, carrinho} = await lerArquivo();
+    const dadosRecebidos = req.body.customer;
+
+    if(carrinho.produtos.length > 0){
+        if (dadosRecebidos.country.length === 2){
+            
+            if(dadosRecebidos.type === "individual"){
+                
+                if(dadosRecebidos.name.split(" ").length >= 2){
+
+                    if(dadosRecebidos.documents[0].number.length === 11){
+                        // "Abater os itens vendidos das quantidades em estoque" - quando adiciono ou retiro itens do carrinho, o estoque ja é atualizado.
+                        const compras = {...carrinho};
+
+                        carrinho.produtos.splice(0)
+                        atualizarCarrinho(carrinho)
+                        
+                        await escreverNoArquivo( { produtos, carrinho })
+
+                        res.json({mensagem: "Finalizado com sucesso!", compras})
+                        
+                    } else {
+                        res.status(404)
+                        res.json({"mensagem":"CPF inválido, por gentileza, fornecer somente os números."});
+                        return
+                    }
+
+                } else {
+                    res.status(404)
+                    res.json({"mensagem":"Por favor, fornecer um nome e um sobrenome, no mínimo."});
+                    return
+                }
+
+            } else {
+                res.status(404)
+                res.json({"mensagem":"Este e-commerce só atende PF."});
+                return
+            }
+
+        } else {
+            res.status(404)
+            res.json({"mensagem":"País inválido, colocar abreviação em 2 caracteres, exs.: BR, US, UK"});
+            return
+        }
+
+    } else {
+        res.status(404)
+        res.json({"mensagem":"Carrinho vazio, impossível prosseguir."});
+        return
+    }
+
 });
 
 

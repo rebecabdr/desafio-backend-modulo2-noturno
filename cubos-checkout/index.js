@@ -1,10 +1,7 @@
 const express = require('express');
-const data = require('./banco/data.json');
 const bodyParser = require('body-parser');
 const {lerArquivo, escreverNoArquivo} = require('./bibliotecaFS');
 const { addBusinessDays } = require('date-fns');
-const { formatRFC3339WithOptions } = require('date-fns/fp');
-const { text } = require('body-parser');
 
 const app = express();
 
@@ -183,9 +180,17 @@ app.delete('/carrinho/produtos/:idProduto', async (req, res) => {
     }
 });
 
-app.delete('/carrinho', async (req, res) => {       // falta conseguir devolver o estoque dos produtos deletados para a lista original
+app.delete('/carrinho', async (req, res) => {
     const {produtos, carrinho} = await lerArquivo();
     
+    for(i =0; i < carrinho.produtos.length; i++){
+        const procurarLista = produtos.find(x => x.id === carrinho.produtos[i].id)
+
+        if(procurarLista){
+            procurarLista.estoque += carrinho.produtos[i].quantidade;
+        }
+    }
+
     carrinho.produtos.splice(0)
 
     atualizarCarrinho(carrinho)
@@ -193,6 +198,7 @@ app.delete('/carrinho', async (req, res) => {       // falta conseguir devolver 
     await escreverNoArquivo( { produtos, carrinho })
     res.json({"mensagem": "Operação realizada com sucesso!"})
 });
+
 
 app.post('/carrinho/finalizar-compra', async (req, res) => {
     const {produtos, carrinho} = await lerArquivo();
@@ -211,7 +217,7 @@ app.post('/carrinho/finalizar-compra', async (req, res) => {
 
                         carrinho.produtos.splice(0)
                         atualizarCarrinho(carrinho)
-                        
+
                         await escreverNoArquivo( { produtos, carrinho })
 
                         res.json({mensagem: "Finalizado com sucesso!", compras})
@@ -245,7 +251,6 @@ app.post('/carrinho/finalizar-compra', async (req, res) => {
         res.json({"mensagem":"Carrinho vazio, impossível prosseguir."});
         return
     }
-
 });
 
 

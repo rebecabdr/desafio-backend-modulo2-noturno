@@ -24,7 +24,7 @@ function atualizarCarrinho (carrinho){
 }
 
 
-// GET listar produtos, com filtros ou sem.
+// GET listar produtos em estoque, com filtros ou sem.
 
 app.get('/produtos', async (req, res) =>{
     const {produtos} = await lerArquivo();
@@ -53,10 +53,14 @@ app.get('/produtos', async (req, res) =>{
     }
 })
 
+// GET listar carrinho.
+
 app.get('/carrinho', async (req, res) =>{
     const {carrinho} = await lerArquivo();
     return res.json(carrinho)
 });
+
+// POST adicionar item no carrinho, diminuindo o estoque.
 
 app.post('/carrinho/produtos', async (req, res) =>{
     const {produtos, carrinho} =  await lerArquivo();
@@ -100,6 +104,8 @@ app.post('/carrinho/produtos', async (req, res) =>{
         return
     }
 });
+
+// PATCH alterando itens no carrinho e consequentemente no estoque.
 
 app.patch('/carrinho/produtos/:idProduto', async (req, res) => {
     const {produtos, carrinho} = await lerArquivo();
@@ -154,6 +160,8 @@ app.patch('/carrinho/produtos/:idProduto', async (req, res) => {
     }
 });
 
+// DELETE de itens do carrinho, adicionando ao estoque.
+
 app.delete('/carrinho/produtos/:idProduto', async (req, res) => {
     const {produtos, carrinho} = await lerArquivo();
     const idSolicitado = Number(req.params.idProduto);
@@ -180,6 +188,8 @@ app.delete('/carrinho/produtos/:idProduto', async (req, res) => {
     }
 });
 
+// DELETE de todos os itens do carrinho, adicionando ao estoque.
+
 app.delete('/carrinho', async (req, res) => {
     const {produtos, carrinho} = await lerArquivo();
     
@@ -199,6 +209,7 @@ app.delete('/carrinho', async (req, res) => {
     res.json({"mensagem": "Operação realizada com sucesso!"})
 });
 
+// POST finalizando a compra.
 
 app.post('/carrinho/finalizar-compra', async (req, res) => {
     const {produtos, carrinho} = await lerArquivo();

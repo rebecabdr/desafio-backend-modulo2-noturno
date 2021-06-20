@@ -31,16 +31,24 @@ app.get('/produtos', async (req, res) =>{
     const query = req.query;
 
     if(query.precoInicial && query.precoFinal && query.categoria){
-       const filtroPrecosECategoria = produtosEstoque.filter(x => x.preco >= query.precoInicial && x.preco <= query.precoFinal && x.categoria.toLowerCase() === query.categoria.toLowerCase());
+
+        const filtroPrecosECategoria = produtosEstoque.filter(x => x.preco >= query.precoInicial && x.preco <= query.precoFinal && x.categoria.toLowerCase() === query.categoria.toLowerCase());
        res.json(filtroPrecosECategoria)
+
     } else if(query.precoInicial && query.precoFinal){
+
         const filtroPrecos = produtosEstoque.filter(x => x.preco >= query.precoInicial && x.preco <= query.precoFinal)
         res.json(filtroPrecos)
+
     } else if (query.categoria){
+
         const filtroCategoria = produtosEstoque.filter(x => x.categoria.toLowerCase() === query.categoria.toLowerCase());
         res.json(filtroCategoria)
+
     } else {
+
         res.json(produtosEstoque)
+
     }
 })
 
@@ -77,6 +85,8 @@ app.post('/carrinho/produtos', async (req, res) =>{
             }
     
             carrinho.produtos.push(addProduct);
+            produtoAAdicionar.estoque -= quantidade;
+
             atualizarCarrinho(carrinho)
 
             await escreverNoArquivo( { produtos, carrinho })
@@ -141,10 +151,35 @@ app.patch('/carrinho/produtos/:idProduto', async (req, res) => {
         res.json({"mensagem":"Este item não se encontra no carrinho!"});
         return
     }
-
-
-
 });
+
+app.delete('/carrinho/produtos/:idProduto', async (req, res) => {
+    const {produtos, carrinho} = await lerArquivo();
+    const idSolicitado = Number(req.params.idProduto);
+
+    const idSolicitadoCarrinho = carrinho.produtos.find(x => x.id === idSolicitado);
+    const idSolicitadoProdutos = produtos.find(x => x.id === idSolicitado);
+
+    if(idSolicitadoCarrinho){       // se o item a ser deletado consta no carrinho, deletamos e retornamos a quantidade para o estoque
+        
+        const indiceProdutoCarrinho = carrinho.produtos.indexOf(idSolicitadoCarrinho);
+        
+        carrinho.produtos.splice(indiceProdutoCarrinho, 1);
+        idSolicitadoProdutos.estoque += idSolicitadoCarrinho.quantidade;
+        
+        atualizarCarrinho(carrinho)
+                
+        await escreverNoArquivo( { produtos, carrinho })
+        res.json(carrinho)
+
+    } else {                        // se o item a ser deletado NÃO consta no carrinho
+        res.status(404)
+        res.json({"mensagem":"Este item não se encontra no carrinho!"});
+        return
+    }
+});
+
+
 
 
 app.listen(3000);
